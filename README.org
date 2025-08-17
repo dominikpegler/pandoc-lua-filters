@@ -60,6 +60,7 @@ You can also reference the filter by full path with =--lua-filter=/full/path/gdo
 If the transfer JSON includes =citation-key= (common):
 #+begin_src 
 pandoc in.docx -t org \
+  --extract-media=/path/to/media \
   --lua-filter=gdoc-zotero.lua \
   -M bibliography=/path/to/refs.bib \
   -o out.org
@@ -68,6 +69,7 @@ pandoc in.docx -t org \
 If =citation-key= is missing, also map URIs to citekeys (Zotero+BBT+zotxt running):
 #+begin_src 
 pandoc in.docx -t org \
+  --extract-media=/path/to/media \
   --lua-filter=gdoc-zotero.lua \
   --lua-filter=/path/to/pandoc-zotxt.lua \
   -M bibliography=/path/to/refs.bib \
@@ -91,7 +93,8 @@ In Emacs:
 To Markdown (Pandoc citations):
 #+begin_src 
 pandoc in.docx -t markdown \
-  --lua-filter=gdoc-zotero.lua \
+  -- \
+  --extract-media=/path/to/media \
   -M bibliography=/path/to/refs.bib \
   -o out.md
 #+end_src
@@ -106,7 +109,7 @@ pandoc out.md --citeproc -M csl=path/style.csl -o rendered.md
 
 - Check Pandoc sees citations (shows =Cite=/=Citation= in the AST):
 #+begin_src 
-pandoc -t native in.docx --lua-filter=gdoc-zotero.lua | grep -i cite
+pandoc -t native in.docx -- | grep -i cite
 #+end_src
 
 - If you still see long =https://www.zotero.org/google-docs/...= links in the output, the filter didn’t run or the DOCX isn’t a transfer document. Confirm the DOCX contains =CSL_CITATION= or the banner text.
@@ -125,6 +128,7 @@ pandoc -t native in.docx --lua-filter=gdoc-zotero.lua | grep -i cite
   - Convert with:
     #+begin_src 
     pandoc in.odt -t org \
+      --extract-media=/path/to/media \
       --lua-filter=zotero.lua \
       --lua-filter=/path/to/pandoc-zotxt.lua \
       -M bibliography=/path/to/refs.bib \
