@@ -59,7 +59,7 @@ You can also reference the filter by full path with =--lua-filter=/full/path/gdo
 
 If the transfer JSON includes =citation-key= (common):
 #+begin_src 
-pandoc in.docx -t org \
+pandoc in.docx -t org --wrap=none \
   --extract-media=/path/to/media \
   --lua-filter=gdoc-zotero.lua \
   -M bibliography=/path/to/refs.bib \
@@ -68,7 +68,7 @@ pandoc in.docx -t org \
 
 If =citation-key= is missing, also map URIs to citekeys (Zotero+BBT+zotxt running):
 #+begin_src 
-pandoc in.docx -t org \
+pandoc in.docx -t org --wrap=none \
   --extract-media=/path/to/media \
   --lua-filter=gdoc-zotero.lua \
   --lua-filter=/path/to/pandoc-zotxt.lua \
@@ -127,7 +127,7 @@ pandoc -t native in.docx -- | grep -i cite
   - Open in LibreOffice Writer → Zotero → Refresh → Save as ODT (not DOCX).
   - Convert with:
     #+begin_src 
-    pandoc in.odt -t org \
+    pandoc in.odt -t org --wrap=none \
       --extract-media=/path/to/media \
       --lua-filter=zotero.lua \
       --lua-filter=/path/to/pandoc-zotxt.lua \
