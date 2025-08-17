@@ -1,0 +1,160 @@
+* Pandoc Lua Toolbox
+
+A small collection of Pandoc Lua filters. Currently includes:
+
+- =filters/gdoc-zotero.lua=: converts Google Docs “Zotero transfer” links (the ones created by “Zotero → Switch word processors”) into real Pandoc citations. Useful to go from Google Docs to Org-mode with org-cite (or to Markdown with Pandoc citations) without using Word/LibreOffice.
+
+Tested with Pandoc 3.1.12.1.
+
+** Repository layout
+
+#+begin_src 
+.
+├── filters/
+│   └── gdoc-zotero.lua
+├── examples/
+│   └── (optional sample commands)
+├── README.md
+└── LICENSE
+#+end_src
+
+** Requirements
+
+- Pandoc 3.1+ (Lua 5.4, =pandoc.json= module available).
+- Optional (only if your Google Doc’s transfer JSON lacks a =citation-key=):
+  - Zotero desktop running
+  - Zotero add-ons: Better BibTeX (BBT) and zotxt
+  - The =pandoc-zotxt.lua= filter (from its repo) to map Zotero item URIs → citekeys
+
+** Installation
+
+1) Find your Pandoc user data directory:
+#+begin_src 
+pandoc --version
+#+end_src
+Look for a line like:
+#+begin_src 
+User data directory: /home/you/.local/share/pandoc
+#+end_src
+
+2) Put filters here (create the folder if needed):
+- Linux: =~/.local/share/pandoc/filters/=
+- macOS: =~/Library/Application Support/pandoc/filters/=
+- Windows: =%APPDATA%\pandoc\filters\=
+
+3) Copy the filter:
+#+begin_src 
+# Linux example
+mkdir -p ~/.local/share/pandoc/filters
+cp filters/gdoc-zotero.lua ~/.local/share/pandoc/filters/
+#+end_src
+
+You can also reference the filter by full path with =--lua-filter=/full/path/gdoc-zotero.lua= without copying.
+
+** Usage: Google Docs with Zotero → Org (org-cite)
+
+1) In Google Docs: Zotero → “Switch word processors” (adds the transfer banner).
+2) File → Download → Microsoft Word (.docx).
+3) Convert with Pandoc (do not use =--citeproc= in this step):
+
+If the transfer JSON includes =citation-key= (common):
+#+begin_src 
+pandoc in.docx -t org \
+  --lua-filter=gdoc-zotero.lua \
+  -M bibliography=/path/to/refs.bib \
+  -o out.org
+#+end_src
+
+If =citation-key= is missing, also map URIs to citekeys (Zotero+BBT+zotxt running):
+#+begin_src 
+pandoc in.docx -t org \
+  --lua-filter=gdoc-zotero.lua \
+  --lua-filter=/path/to/pandoc-zotxt.lua \
+  -M bibliography=/path/to/refs.bib \
+  -o out.org
+#+end_src
+
+Result: Org with org-cite syntax like =[cite:@key]=. The filter also removes the “ZOTERO_TRANSFER_DOCUMENT …” banner paragraph.
+
+In Emacs:
+- Ensure =#+bibliography: /path/to/refs.bib= is present, or set:
+  #+begin_src elisp
+  (setq org-cite-global-bibliography '("~/refs.bib"))
+  #+end_src
+- Optional export style in the Org file:
+  #+begin_src 
+  #+cite_export: csl path/to/style.csl
+  #+end_src
+
+** Other targets
+
+To Markdown (Pandoc citations):
+#+begin_src 
+pandoc in.docx -t markdown \
+  --lua-filter=gdoc-zotero.lua \
+  -M bibliography=/path/to/refs.bib \
+  -o out.md
+#+end_src
+
+To immediately render formatted citations (second pass with citeproc):
+#+begin_src 
+pandoc out.md --citeproc -M csl=path/style.csl -o rendered.md
+# Or export from Org with org-cite, or via a Pandoc second pass
+#+end_src
+
+** Verifying it works
+
+- Check Pandoc sees citations (shows =Cite=/=Citation= in the AST):
+#+begin_src 
+pandoc -t native in.docx --lua-filter=gdoc-zotero.lua | grep -i cite
+#+end_src
+
+- If you still see long =https://www.zotero.org/google-docs/...= links in the output, the filter didn’t run or the DOCX isn’t a transfer document. Confirm the DOCX contains =CSL_CITATION= or the banner text.
+
+** Troubleshooting
+
+- Missing citekeys:
+  - Use the =pandoc-zotxt.lua= filter and keep Zotero open with Better BibTeX + zotxt installed.
+  - Ensure the cited items exist in your local Zotero (including group libraries).
+
+- Odd line wrapping in Org:
+  - Add =--wrap=none= to Pandoc.
+
+- Prefer the LibreOffice route instead:
+  - Open in LibreOffice Writer → Zotero → Refresh → Save as ODT (not DOCX).
+  - Convert with:
+    #+begin_src 
+    pandoc in.odt -t org \
+      --lua-filter=zotero.lua \
+      --lua-filter=/path/to/pandoc-zotxt.lua \
+      -M bibliography=/path/to/refs.bib \
+      -o out.org
+    #+end_src
+  - Use this only if you actually refresh in LO; saving DOCX from LO will flatten Zotero fields.
+
+** Defaults file (optional)
+
+Put common options in =defaults.yaml=:
+#+begin_src yaml
+from: docx
+to: org
+lua-filter:
+  - gdoc-zotero.lua
+  # - /full/path/pandoc-zotxt.lua
+metadata:
+  bibliography: /path/to/refs.bib
+wrap: none
+#+end_src
+Then run:
+#+begin_src 
+pandoc --defaults=defaults.yaml in.docx -o out.org
+#+end_src
+
+** Contributing
+
+- Add new filters under =filters/=.
+- Document each filter’s purpose and usage in this README.
+- Test with:
+#+begin_src 
+pandoc -t native INPUT --lua-filter=filters/your-filter.lua
+#+end_src
