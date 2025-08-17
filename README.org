@@ -1,4 +1,4 @@
-* Pandoc Lua Toolbox
+* Pandoc Lua Filters
 
 A small collection of Pandoc Lua filters. Currently includes:
 
