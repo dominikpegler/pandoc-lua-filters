@@ -4,6 +4,7 @@ A small collection of Pandoc Lua filters. Currently includes:
 
 - =filters/gdoc-zotero.lua=: converts Google Docs “Zotero transfer” links (the ones created by “Zotero → Switch word processors”) into real Pandoc citations. Useful to go from Google Docs to Org-mode with org-cite (or to Markdown with Pandoc citations) without using Word/LibreOffice.
 - =filters/runin-apa.lua=: promotes APA 7 run‑in headings (levels 4 and 5) authored in Google Docs to real Pandoc headers. Detects a paragraph that starts with bold text ending in a period (level 4) or bold+italic ending in a period (level 5), then splits it into a Header followed by the paragraph.
+- =filters/apa-figtbl.lua=: converts APA Figures/Tables authored in Google Docs as Heading 2 (“Figure N” / “Table N”) with an italic caption below into labeled, captioned figures/tables. In Org it emits =#+name: fig-N= / =#+name: tbl-N= and =#+caption:=. Also replaces in‑text “Figure N” / “Table N” with refs (Org: =ref:fig-N= / =ref:tbl-N=; others: links to =#fig-N= / =#tbl-N=).
 
 Tested with Pandoc 3.1.12.1.
 
@@ -12,11 +13,12 @@ Tested with Pandoc 3.1.12.1.
 #+begin_src
 .
 ├── filters/
+│   ├── apa-figtbl.lua
 │   ├── gdoc-zotero.lua
 │   └── runin-apa.lua
 ├── examples/
 │   └── (optional sample commands)
-├── README.md
+├── README.org
 └── LICENSE
 #+end_src
 
@@ -50,6 +52,7 @@ User data directory: /home/you/.local/share/pandoc
 mkdir -p ~/.local/share/pandoc/filters
 cp filters/gdoc-zotero.lua ~/.local/share/pandoc/filters/
 cp filters/runin-apa.lua   ~/.local/share/pandoc/filters/
+cp filters/apa-figtbl.lua  ~/.local/share/pandoc/filters/
 #+end_src
 
 You can also reference filters by full path with =--lua-filter=/full/path/filter.lua= without copying.
@@ -138,6 +141,48 @@ Verify detection (look for Header level 4/5 in the AST):
 pandoc -t native in.docx --lua-filter=runin-apa.lua | grep -E 'Header|Level 4|Level 5'
 #+end_src
 
+** Usage: Google Docs APA Figures/Tables → Org/Markdown
+
+What it does:
+- Detects Heading 2 lines “Figure N” / “Table N” (case‑insensitive).
+- Uses the next all‑italic paragraph as the caption.
+- Finds the next image/table (searches a few blocks ahead), assigns id =fig-N=/=tbl-N=, and sets the caption.
+- Rewrites in‑text “Figure N” / “Table N” to references (Org: =ref:fig-N= / =ref:tbl-N=; Markdown: links to =#fig-N= / =#tbl-N=).
+- Org: emits explicit =#+name= and =#+caption= so labels/captions are always present.
+
+DOCX → Org:
+#+begin_src
+pandoc in.docx -t org --wrap=none \
+  --lua-filter=apa-figtbl.lua \
+  -o out.org
+#+end_src
+
+DOCX → Markdown (GFM):
+#+begin_src
+pandoc in.docx -t gfm \
+  --lua-filter=apa-figtbl.lua \
+  -o out.md
+#+end_src
+
+Combine with other filters:
+#+begin_src
+pandoc in.docx -t org --wrap=none \
+  --lua-filter=runin-apa.lua \
+  --lua-filter=apa-figtbl.lua \
+  --lua-filter=gdoc-zotero.lua \
+  -M bibliography=/path/to/refs.bib \
+  -o out.org
+#+end_src
+
+Assumptions and notes:
+- Pattern in Google Docs: Heading 2 “Figure 1” (or “Table 1”), next line is the caption in italics, then the image/table content.
+- If the image/table is not immediately after the caption, the filter searches a few blocks ahead.
+- Only in‑text references to items that were actually recognized are rewritten.
+
+Troubleshooting:
+- Inspect structure: =pandoc in.docx -t native | less=; expect H2 “Figure 1”, Para with Emph (caption), then an Image (in Para/Div) or a Table.
+- If captions aren’t fully italic, simplify formatting or relax the filter’s italic check in =apa-figtbl.lua=.
+
 ** Other targets
 
 To Markdown (Pandoc citations):
@@ -152,7 +197,7 @@ pandoc in.docx -t markdown \
 To immediately render formatted citations (second pass with citeproc):
 #+begin_src
 pandoc out.md --citeproc -M csl=path/style.csl -o rendered.md
-** Or export from Org with org-cite, or via a Pandoc second pass
+* Or export from Org with org-cite, or via a Pandoc second pass
 #+end_src
 
 ** Verifying it works
@@ -177,6 +222,10 @@ pandoc -t native in.docx -- | grep -i cite
   - Ensure the heading phrase is bold (level 4) or bold+italic (level 5) and that the period is inside the styled text.
   - Mixed formatting inside the heading phrase may prevent detection; simplify or tweak the filter.
 
+- APA Figures/Tables didn’t convert:
+  - Confirm the pattern: H2 “Figure N”/“Table N” → next line all italics (caption) → image/table nearby.
+  - Increase the search window in =apa-figtbl.lua= if the image/table is several blocks later.
+
 - Prefer the LibreOffice route instead:
   - Open in LibreOffice Writer → Zotero → Refresh → Save as ODT (not DOCX).
   - Convert with:
@@ -198,6 +247,7 @@ from: docx
 to: org
 lua-filter:
   - runin-apa.lua
+  - apa-figtbl.lua
   - gdoc-zotero.lua
   # - /full/path/pandoc-zotxt.lua
 metadata:
